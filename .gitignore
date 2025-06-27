@@ -6,9 +6,3 @@ Server/.env
 Client/node_modules/
 Server/node_modules/
 
-# Logs
-*.log
-
-# OS-specific files
-.DS_Store
-Thumbs.db
