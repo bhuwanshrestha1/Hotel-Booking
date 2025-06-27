@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DynaPuff:wght@400..700&family=Oswald:wght@200..700&family=Outfit:wght@100..900&family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+    --color-primary: #2563EB;
+    --color-secondary: #FBBF24;
+}
+
+
+
+/* Apply Outfit globally */
+* {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Utility class for Playfair font */
+.font-playfair {
+  font-family: 'Playfair', serif !important;
+}
