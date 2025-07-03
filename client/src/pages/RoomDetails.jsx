@@ -1,23 +1,83 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import {
-  assets,
-  facilityIcons,
-  roomCommonData,
-  roomsDummyData,
-} from "../assets/assets";
+import { assets, facilityIcons, roomCommonData } from "../assets/assets";
 import StarRating from "../components/StarRating";
+import { useAppContext } from "../context/AppContext";
+import toast from "react-hot-toast";
 
 const RoomDetails = () => {
   const { id } = useParams();
+  const { rooms, getToken, axios, navigate } = useAppContext();
   const [room, setRoom] = useState(null);
   const [mainImage, setMainImage] = useState(null);
 
+  const [checkInDate, setCheckInDate] = useState(null);
+  const [checkOutDate, setCheckOutDate] = useState(null);
+  const [guests, setGuests] = useState(1);
+  const [isAvailable, setIsAvailable] = useState(false);
+
+  const checkAvailability = async () => {
+    try {
+      if (checkInDate >= checkOutDate) {
+        toast.error("CheckInDate should be less than CheckOutDate");
+        return;
+      }
+      const { data } = await axios.post("/api/bookings/check-availability", {
+        room: id,
+        checkInDate,
+        checkOutDate,
+      });
+      if (data.success) {
+        if (data.isAvailable) {
+          setIsAvailable(true);
+          toast.success("Room is available");
+        } else {
+          setIsAvailable(false);
+          toast.error("Room is not available");
+        }
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const onSubmitHandler = async (e) => {
+    try {
+      e.preventDefault();
+      if (!isAvailable) {
+        return checkAvailability();
+      } else {
+        const { data } = await axios.post(
+          "/api/bookings/book",
+          {
+            room: id,
+            checkInDate,
+            checkOutDate,
+            guests,
+            paymentMethod: "Pay At Hotel",
+          },
+          { headers: { Authorization: `Bearer ${await getToken()}` } }
+        );
+        if (data.success) {
+          toast.success(data.message);
+          navigate("/my-bookings");
+          scrollTo(0, 0);
+        } else {
+          toast.error(data.message);
+        }
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   useEffect(() => {
-    const room = roomsDummyData.find((room) => room._id === id);
+    const room = rooms.find((room) => room._id === id);
     room && setRoom(room);
     room && setMainImage(room.images[0]);
-  }, [id]);
+  }, [rooms]);
 
   return (
     room && (
@@ -51,7 +111,7 @@ const RoomDetails = () => {
             <img
               src={mainImage}
               alt="RoomImage"
-              className="w-full rounded-xl shadow-lg object-cover"
+              className="w-full h-96 rounded-xl shadow-lg object-cover"
             />
           </div>
           <div className="grid grid-cols-2 lg:w-1/2 gap-4 w-full">
@@ -62,10 +122,10 @@ const RoomDetails = () => {
                   src={image}
                   alt="RoomImage"
                   key={index}
-                  className={`w-full rounded-xl shadow-md object-cover cursor-pointer ${
-                    mainImage === image && "outline-3 outline-orange-500"
+                  className={`w-full h-40 rounded-xl shadow-md object-cover cursor-pointer ${
+                    mainImage === image ? "outline-3 outline-orange-500" : ""
                   }`}
-                ></img>
+                />
               ))}
           </div>
         </div>
@@ -99,6 +159,7 @@ const RoomDetails = () => {
 
         {/*CheckIn CheckOut Form*/}
         <form
+          onSubmit={onSubmitHandler}
           className="flex flex-col md:flex-row items-start md:items-center justify-between
         bg-white shadow-[0px_0px_20px_rgba(0,0,0,0.15)] p-6 rounded-xl mx-auto mt-16 max-w-6xl"
         >
@@ -111,6 +172,8 @@ const RoomDetails = () => {
                 Check-In
               </label>
               <input
+                onChange={(e) => setCheckInDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
                 type="date"
                 placeholder="Check-In"
                 id="checkInDate"
@@ -126,6 +189,9 @@ const RoomDetails = () => {
               </label>
               <input
                 type="date"
+                onChange={(e) => setCheckOutDate(e.target.value)}
+                min={checkInDate}
+                disabled={!checkInDate}
                 placeholder="Check-Out"
                 id="checkOutDate"
                 className="w-full rounded border border-gray-300 px-3 py-2 mt-1.5 outline-none"
@@ -138,8 +204,10 @@ const RoomDetails = () => {
                 Guests
               </label>
               <input
+                value={guests}
+                onChange={(e) => setGuests(Number(e.target.value))}
                 type="number"
-                placeholder="0"
+                placeholder="1"
                 id="guests"
                 className="max-w-20 rounded border border-gray-300 px-3 py-2 mt-1.5 outline-none"
                 required
@@ -152,7 +220,7 @@ const RoomDetails = () => {
             className="bg-primary hover:bg-primary-dull active:scale-95 transition-all text-white 
           rounded-md max-md:w-full max-md:mt-6 md:px-25 py-3 md:py-4 text-base cursor-pointer"
           >
-            Check Availability
+            {isAvailable ? "Book Now" : "Check Availability"}
           </button>
         </form>
 

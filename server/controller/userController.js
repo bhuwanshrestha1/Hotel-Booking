@@ -2,8 +2,8 @@
 export const getUserData = async (req, res) => {
   try {
     const role = req.user.role;
-    const recentSearchedCities = req.user.recentSearchedCities;
-    res.json({ success: true, role, recentSearchedCities });
+    const recentSearchCitites = req.user.recentSearchCitites;
+    res.json({ success: true, role, recentSearchCitites });
   } catch (error) {
     console.log(error.message);
     res.json({ success: false, message: error.message });
@@ -14,16 +14,22 @@ export const getUserData = async (req, res) => {
 export const storeRecentSearchedCities = async (req, res) => {
   try {
     const { recentSearchedCity } = req.body;
-    const user = await req.user;
+    const user = req.user;
 
-    if (user.recentSearchedCities.length < 3) {
-      user.recentSearchedCities.push(recentSearchedCity);
+    // Ensure the field exists
+    if (!user.recentSearchCitites) {
+      user.recentSearchCitites = [];
+    }
+
+    if (user.recentSearchCitites.length < 3) {
+      user.recentSearchCitites.push(recentSearchedCity);
     } else {
-      user.recentSearchedCities.shift();
-      user.recentSearchedCities.push(recentSearchedCity);
+      user.recentSearchCitites.shift();
+      user.recentSearchCitites.push(recentSearchedCity);
     }
 
     await user.save();
+
     res.json({ success: true, message: "City Added" });
   } catch (error) {
     console.log(error.message);
