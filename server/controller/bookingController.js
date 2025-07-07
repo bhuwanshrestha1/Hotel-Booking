@@ -2,6 +2,10 @@ import transporter from "../configs/nodemailer.js";
 import Booking from "../models/Booking.js";
 import Hotel from "../models/Hotel.js";
 import Room from "../models/Room.js";
+import Stripe from "stripe";
+
+//gateway initialize
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 //Function to check availability of room
 const checkAvailability = async ({ checkInDate, checkOutDate, room }) => {
@@ -169,5 +173,57 @@ export const getHotelBookings = async (req, res) => {
   } catch (error) {
     console.log(error.message);
     res.json({ success: false, message: "Failed to fetch bookings" });
+  }
+};
+
+// POST /api/bookings/create-checkout-session
+export const payAsStripe = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+
+    // Fetch booking info
+    const booking = await Booking.findById(bookingId).populate("hotel room");
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found" });
+    }
+
+    // Create Stripe Checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `${booking.hotel.name} - ${booking.room.roomType}`,
+              description: `Booking from ${new Date(
+                booking.checkInDate
+              ).toDateString()} to ${new Date(
+                booking.checkOutDate
+              ).toDateString()}`,
+            },
+            unit_amount: booking.totalPrice * 100, // Stripe uses cents
+          },
+          quantity: 1,
+        },
+      ],
+      customer_email: req.user.email,
+      metadata: {
+        bookingId: booking._id.toString(),
+        userId: req.user._id.toString(),
+      },
+      success_url: `${process.env.FRONTEND_URL}/payment-success?bookingId=${booking._id}`,
+      cancel_url: `${process.env.FRONTEND_URL}/my-bookings`,
+    });
+
+    res.json({ success: true, url: session.url });
+  } catch (error) {
+    console.log("Stripe error:", error.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Stripe session creation failed" });
   }
 };
